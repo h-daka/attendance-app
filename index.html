@@ -1,0 +1,393 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+  <meta charset="UTF-8">  
+  <title>出席管理アプリ</title>  
+  
+  <style>
+    .container{
+        max-width: 400px;
+        margin: 40px auto;
+        padding: 16px;
+    }
+    body {  
+      font-family: Arial, sans-serif;  
+      background-color: #f5f7fa;  
+      padding: 20px;  
+    }  
+  
+    h1, h2 {  
+      color: #333;  
+    }  
+  
+    input {  
+      margin: 5px;  
+      padding: 5px;  
+    }  
+  
+    button {  
+      margin: 3px;  
+      padding: 5px 10px;  
+      border: none;  
+      cursor: pointer;  
+    }  
+  
+    .card {  
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: white;  
+      padding: 16px;  
+      margin-bottom: 16px;  
+      border-radius: 12px;  
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);  
+    }  
+  
+    .present {  
+      background-color: #4CAF50;  
+      color: white;  
+    }  
+  
+    .absent {  
+      background-color: #f44336;  
+      color: white;  
+    }  
+  
+    .status {  
+      margin-left: 10px;  
+      font-weight: bold;  
+    }  
+  body {
+  font-family: Arial;
+  background-color: #f5f5f5;
+  padding: 10px;
+  margin: 0;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+input {
+  width: 90%;
+  padding: 8px;
+  margin: 5px auto;
+  display: block;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+}
+
+.card {
+  background: white;
+  padding: 15px;
+  margin: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.present {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.absent {
+  background-color: #f44336;
+  color: white;
+}
+
+.status {
+  display: block;
+  margin-top: 5px;
+  font-weight: bold;
+}
+.button-group{
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.button-group button{
+    flex: 1;
+}
+.title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* スマホ用 */
+@media (max-width: 600px) {
+  button {
+    width: 45%;
+  }
+}
+
+  </style>  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+</head>  
+<div class = "container">
+<body>
+<h1 class="title">出席管理アプリ</h1>      
+ <button onclick="login()">ログイン</button>
+<button onclick="logout()">ログアウト</button>
+
+<p id="user"></p> 
+<h1>時間割登録</h1>  
+  
+**月** <input id="mon"><br>  
+**火** <input id="tue"><br>  
+**水** <input id="wed"><br>  
+**木** <input id="thu"><br>  
+**金** <input id="fri"><br>  
+  
+<button onclick="saveSchedule()">保存</button>  
+  
+<h2>今日の授業</h2>  
+<div id="today"></div>  
+  
+<h2>出席率</h2>
+<p id="rate">0%</p>
+
+<h2>出席グラフ</h2>
+<div class = "card">
+    <h2>出席状況</h2>
+<canvas id="chart" width="300" height="300"></canvas>
+</div>
+<h2>記録一覧</h2>  
+<ul id="records"></ul>  
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>   
+function saveSchedule() {  
+  const schedule = {  
+    1: document.getElementById("mon").value.split(","),  
+    2: document.getElementById("tue").value.split(","),  
+    3: document.getElementById("wed").value.split(","),  
+    4: document.getElementById("thu").value.split(","),  
+    5: document.getElementById("fri").value.split(",")  
+  };  
+  
+  localStorage.setItem("schedule", JSON.stringify(schedule));  
+  alert("時間割を保存した！");  
+}  
+  
+function loadToday() {  
+  const data = JSON.parse(localStorage.getItem("schedule"));  
+  const day = new Date().getDay();  
+  
+  const todayDiv = document.getElementById("today");  
+  todayDiv.innerHTML = "";  
+  
+  if (data && data[day]) {  
+    data[day].forEach(subject => {  
+      if (subject.trim() === "") return;  
+  
+      const div = document.createElement("div");  
+      div.className = "card";  
+  
+      const id = subject + new Date().toLocaleDateString();  
+  
+      div.innerHTML = `  
+        <span>${subject}</span>  
+        <div class ="button-group">
+        <button onclick="setStatus('${id}','出席')">出席</button>  
+        <button onclick="setStatus('${id}','欠席')">欠席</button> 
+        </div> 
+        <span id="${id}" class="status"></span>  
+      `;  
+  
+      todayDiv.appendChild(div);  
+    });  
+  } else {  
+    todayDiv.textContent = "今日は授業なし";  
+  }  
+}  
+  
+function setStatus(id, status) {  
+  const span = document.getElementById(id);  
+  
+  span.textContent = status;  
+  
+  span.classList.remove("present", "absent");  
+  
+  if (status === "出席") {  
+    span.classList.add("present");  
+  } else {  
+    span.classList.add("absent");  
+  }  
+  
+  saveRecord(id, status);  
+}  
+  
+function saveRecord(id, status) {  
+  const user = auth.currentUser;
+if (!user) return;
+
+const records = JSON.parse(localStorage.getItem(user.uid + "_records")) || [];  
+  
+  const today = new Date().toLocaleDateString();  
+  
+  records.push({  
+    date: today,  
+    subject: id,  
+    status: status  
+  });  
+  
+  localStorage.setItem(user.uid + "_records", JSON.stringify(records)); 
+  
+  loadRecords();
+  drawChart();
+  calculateRate();  
+}  
+  
+function loadRecords() {
+  const user = auth.currentUser;
+if (!user) return;
+
+const records = JSON.parse(localStorage.getItem(user.uid + "_records")) || [];
+
+  const list = document.getElementById("records");
+  list.innerHTML = "";
+
+  records.forEach((r, index) => {
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      ${r.date} - ${r.subject} - ${r.status}
+      <button onclick="deleteRecord(${index})">削除</button>
+    `;
+
+    if (r.status === "出席") {
+      li.style.color = "green";
+    } else {
+      li.style.color = "red";
+    }
+
+    list.appendChild(li);
+  });
+}
+
+function calculateRate(){
+    const user = auth.currentUser;
+if (!user) return;
+
+localStorage.getItem(user.uid + "_records")
+
+    let present = 0;
+
+    records.forEach(r => {
+        if(r.status === "出席") present++;
+    });
+
+    const total = records.length;
+    const rate = total === 0 ? 0 :Math.round((present / total) * 100);
+
+    document.getElementById("rate").textContent = rate + "%";
+}
+  
+function drawChart() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const records = JSON.parse(localStorage.getItem(user.uid + "_records")) || [];
+
+  let present = 0;
+  let absent = 0;
+
+  records.forEach(r => {
+    if (r.status === "出席") present++;
+    else absent++;
+  });
+
+  const ctx = document.getElementById('chart');
+
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['出席', '欠席'],
+      datasets: [{
+        data: [present, absent],
+        backgroundColor: ['#4CAF50', '#f44336']
+      }]
+    },
+    opinions: {
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+  });
+}
+function deleteRecord(index) {
+  const user = auth.currentUser;
+if (!user) return;
+
+const records = JSON.parse(localStorage.getItem(user.uid + "_records")) || [];
+
+  records.splice(index, 1); 
+
+if (!user) return;
+
+localStorage.setItem(user.uid + "_records", JSON.stringify(records));
+
+  loadRecords();
+  calculateRate();
+  drawChart();
+}
+loadToday();  
+loadRecords(); 
+calculateRate(); 
+drawChart();
+</script>  
+<script src ="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBABoeGIEaYSP_vnnamnp95SvB6fSxzuls",
+    authDomain: "attendance-app-5870c.firebaseapp.com",
+    projectId: "attendance-app-5870c",
+    storageBucket: "attendance-app-5870c.firebasestorage.app",
+    messagingSenderId: "476169562526",
+    appId: "1:476169562526:web:b14f01bfb4b1ec10180e8f",
+    measurementId: "G-0X0ME9E6K4"
+  };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById("user").textContent = user.displayName;
+  } else {
+    document.getElementById("user").textContent = "未ログイン";
+  }
+});
+
+function login() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(result => {
+      document.getElementById("user").textContent = result.user.displayName;
+    })
+    .catch(error => {
+      console.log(error);
+    });
+}
+function logout() {
+  auth.signOut()
+    .then(() => {
+      document.getElementById("user").textContent = "未ログイン";
+    })
+    .catch((error) => {
+      console.log(error);
+    });
+}
+</script>
+</body>  
+</html>  
